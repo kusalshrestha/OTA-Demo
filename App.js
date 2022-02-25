@@ -28,16 +28,7 @@ const IndicatorHUD = (props) => {
 }
 class App extends React.Component {
   state = {
-    updateProgress: 0,
     codepushStatus: CodePush.SyncStatus.UP_TO_DATE
-  }
-
-  async componentDidMount() {
-    this.restartIfPendingUpdate()
-  }
-
-  async componentDidUpdate() {
-    this.restartIfPendingUpdate()
   }
 
   isUpdating = () => {
@@ -47,17 +38,15 @@ class App extends React.Component {
     return isDownloading || isInstalling
   }
 
-  restartIfPendingUpdate = async () => {
-    const update = await CodePush.getUpdateMetadata(CodePush.UpdateState.PENDING)
-    if (update) {
-      codepush.restartApp()
-    }
-  }
-
-  codePushDownloadDidProgress(progress) {
+  // code push life cycle
+  codePushStatusDidChange(status) {
     this.setState({
-      updateProgress: progress.receivedBytes / progress.totalBytes
+      codepushStatus: status
     })
+
+    if (status === CodePush.SyncStatus.UPDATE_INSTALLED) {
+      CodePush.restartApp()
+    }
   }
 
   render() {
@@ -143,8 +132,8 @@ const styles = StyleSheet.create({
 
 let CodePushOptions = {
   checkFrequency: CodePush.CheckFrequency.ON_APP_RESUME,
-  installMode: CodePush.InstallMode.ON_NEXT_RESTART,
-  mandatoryInstallMode: CodePush.InstallMode.ON_NEXT_RESTART,
+  installMode: CodePush.InstallMode.IMMEDIATE,
+  mandatoryInstallMode: CodePush.InstallMode.IMMEDIATE,
    updateDialog: {
     appendReleaseDescription: true,
     title: "A new update is available!"

@@ -7,106 +7,149 @@
  */
 
 import React from 'react';
-import type {Node} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import CodePush from 'react-native-code-push';
+import LoginScreen from "react-native-login-screen";
+import { StyleSheet, Text, Modal, ActivityIndicator, View } from 'react-native';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-const Section = ({children, title}): Node => {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-};
-
-const App: () => Node = () => {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+const IndicatorHUD = (props) => {
+  const { isLoading, color, size, text } = props
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.js</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <Modal transparent style={styles.modal} animationType="fade" visible={isLoading} onRequestClose={() => {}}>
+      <View style={styles.transparentView} />
+      <View style={styles.mainContainer}>
+        <View style={[styles.curvedCornerView, { backgroundColor: 'gray' }]}>
+          <ActivityIndicator color={color} size={size} />
+          <Text style={styles.text}>{text}</Text>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+      </View>
+    </Modal>
+  )
+}
+class App extends React.Component {
+  state = {
+    updateProgress: 0,
+    codepushStatus: CodePush.SyncStatus.UP_TO_DATE
+  }
+
+  async componentDidMount() {
+    this.restartIfPendingUpdate()
+  }
+
+  async componentDidUpdate() {
+    this.restartIfPendingUpdate()
+  }
+
+  isUpdating = () => {
+    const isDownloading = this.state.codepushStatus === CodePush.SyncStatus.DOWNLOADING_PACKAGE
+    const isInstalling = this.state.codepushStatus === CodePush.SyncStatus.INSTALLING_UPDATE
+
+    return isDownloading || isInstalling
+  }
+
+  restartIfPendingUpdate = async () => {
+    const update = await CodePush.getUpdateMetadata(CodePush.UpdateState.PENDING)
+    if (update) {
+      codepush.restartApp()
+    }
+  }
+
+  codePushDownloadDidProgress(progress) {
+    this.setState({
+      updateProgress: progress.receivedBytes / progress.totalBytes
+    })
+  }
+
+  render() {
+    return (
+      <View style={styles.container}>
+        {
+          this.isUpdating() && <IndicatorHUD isLoading size={'large'} text={'Updating'} />
+        }
+        <View>
+          <LoginScreen
+            disableDivider
+            disableSocialButtons
+            // logoImageSource={require("./assets/logo.png")}
+            haveAccountText={'Forgot Password?'}
+            style={styles.loginContainer}
+            onLoginPress={() => {}}
+            onHaveAccountPress={() => {}}
+          />
+        </View>
+      </View>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  loginContainer: {
+    flex: 0.8,
+    backgroundColor: 'white',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  textContainer: {
+    paddingHorizontal: 40,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 0,
+    borderBottomWidth: 0,
+    borderColor: 'gray',
   },
-  highlight: {
-    fontWeight: '700',
+  text: {
+    color: 'gray',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
+  mainContainer: {
+    position: 'absolute',
+    elevation: 10,
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modal: {
+    flex: 1
+  },
+  transparentView: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0
+  },
+  text: {
+    paddingTop: 4,
+    color: 'white'
+  },
+  curvedCornerView: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 8
+  }
 });
 
-export default App;
+let CodePushOptions = {
+  checkFrequency: CodePush.CheckFrequency.ON_APP_RESUME,
+  installMode: CodePush.InstallMode.ON_NEXT_RESTART,
+  mandatoryInstallMode: CodePush.InstallMode.ON_NEXT_RESTART,
+   updateDialog: {
+    appendReleaseDescription: true,
+    title: "A new update is available!"
+  }
+}
+
+export default CodePush(CodePushOptions)(App);
+// export default App;
